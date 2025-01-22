@@ -7,6 +7,7 @@ import json
 import threading
 import queue
 import sys
+import datetime
 
 CONFIG_FILE = "config.json"
 CACHE_FILE = "cache.json"
@@ -15,7 +16,6 @@ def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
-            # 加载安装路径和启动路径
             install_path_var.set(config.get("install_path", os.getcwd()))  # 默认为当前工作目录
             launcher_path_var.set(config.get("launcher_path", os.getcwd()))  # 默认为当前工作目录
             return config
@@ -66,10 +66,14 @@ def get_available_forge_versions():
         return []
 
 def log_message(message, is_launcher=False):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 获取当前时间戳
+    formatted_message = f"[{timestamp}] {message}"  # 格式化输出信息
+
     if is_launcher:
-        cmd_text_launcher.insert(tk.END, message + "\n")  # 输出到启动器的 CMD 区域
+        cmd_text_launcher.insert(tk.END, formatted_message + "\n")  # 输出到启动器的 CMD 区域
     else:
-        cmd_text.insert(tk.END, message + "\n")  # 输出到部署系统的 CMD 区域
+        cmd_text.insert(tk.END, formatted_message + "\n")  # 输出到部署系统的 CMD 区域
+
     cmd_text_launcher.see(tk.END)  # 自动滚动到最新输出
     cmd_text.see(tk.END)  # 自动滚动到最新输出
 
@@ -205,7 +209,7 @@ def browse_directory_for_launcher():
     if directory:
         launcher_path_var.set(directory)
 
-# 添加按钮以打开模组文件夹
+# 打开模组文件夹的函数
 def open_mod_folder():
     mod_folder_path = os.path.join(launcher_path_var.get(), "mods")  # 假设模组文件夹名为 "mods"
     if not os.path.exists(mod_folder_path):
@@ -214,7 +218,7 @@ def open_mod_folder():
     os.startfile(mod_folder_path)  # 打开模组文件夹
     log_message(f"打开模组文件夹: {mod_folder_path}")
 
-# 添加按钮以打开地图文件夹
+# 打开地图文件夹的函数
 def open_world_folder():
     world_folder_path = os.path.join(launcher_path_var.get(), "world")  # 假设地图文件夹名为 "world"
     if not os.path.exists(world_folder_path):
@@ -223,13 +227,13 @@ def open_world_folder():
     os.startfile(world_folder_path)  # 打开地图文件夹
     log_message(f"打开地图文件夹: {world_folder_path}")
 
-# 添加按钮以打开插件文件夹
+# 打开服务器文件夹的函数
 def open_plugin_folder():
     server_directory = install_path_var.get()  # 获取服务器所在的文件夹路径
     os.startfile(server_directory)  # 打开服务器所在的文件夹
     log_message(f"打开服务器所在的文件夹: {server_directory}")
 
-# 添加按钮以打开设置文件夹
+# 打开设置文件夹的函数
 def open_settings_folder():
     settings_folder_path = os.path.join(launcher_path_var.get(), "config")  # 假设设置文件夹名为 "config"
     if not os.path.exists(settings_folder_path):
@@ -283,7 +287,7 @@ cmd_text.pack(side=tk.BOTTOM, pady=10)  # 将 cmd_text 放在底部
 launcher_path_var = tk.StringVar(value=os.getcwd())  # 默认路径
 
 # 在创建服务器启动器标签页之前定义 port_var
-port_var = tk.StringVar(value="25565")  # 默认端口为 25565
+port_var = StringVar(value="25565")  # 默认端口为 25565
 
 # 创建服务器启动器标签页
 launcher_frame = ttk.Frame(notebook)
@@ -341,6 +345,43 @@ tk.Button(launcher_frame, text="启动服务器", command=lambda: start_server(l
 cmd_text_launcher = tk.Text(launcher_frame, height=10, width=50)
 cmd_text_launcher.pack(side=tk.BOTTOM, pady=10)  # 将 cmd_text_launcher 放在底部
 
+def check_mods_compatibility(server_path):
+    mods_folder = os.path.join(server_path, "mods")  # 假设模组文件夹名为 "mods"
+    incompatible_folder = os.path.join(server_path, "incompatible_mods")  # 不兼容模组存放文件夹
+    if not os.path.exists(incompatible_folder):
+        os.makedirs(incompatible_folder)  # 创建不兼容模组文件夹
+
+    if os.path.exists(mods_folder):
+        incompatible_mods = []
+        for mod_file in os.listdir(mods_folder):
+            if not mod_file.endswith(".jar"):  # 只检查 .jar 文件
+                continue
+            # 检查模组是否兼容
+            if "incompatible" in mod_file:  # 这里可以根据实际情况修改检查逻辑
+                incompatible_mods.append(mod_file)
+                # 移动不兼容的模组文件到新文件夹
+                src_path = os.path.join(mods_folder, mod_file)
+                dst_path = os.path.join(incompatible_folder, mod_file)
+                os.rename(src_path, dst_path)
+                log_message(f"已移动不兼容的模组: {mod_file} 到 {incompatible_folder}")
+        return incompatible_mods
+    return []
+
+def move_incompatible_mods(server_path):
+    mods_folder = os.path.join(server_path, "mods")
+    incompatible_folder = os.path.join(server_path, "incompatible_mods")
+    if not os.path.exists(incompatible_folder):
+        os.makedirs(incompatible_folder)
+
+    incompatible_mods = ["OptiFine", "其他不兼容模组名称"]  # 添加不兼容模组的名称
+    if os.path.exists(mods_folder):
+        for mod_file in os.listdir(mods_folder):
+            if any(incompatible in mod_file for incompatible in incompatible_mods):  # 检查模组名称
+                src_path = os.path.join(mods_folder, mod_file)
+                dst_path = os.path.join(incompatible_folder, mod_file)
+                os.rename(src_path, dst_path)
+                log_message(f"已移动不兼容的模组: {mod_file} 到 {incompatible_folder}")
+
 def start_server(server_path, memory, server_type):
     # 禁用弹窗
     os.environ['PYTHONUNBUFFERED'] = '1'
@@ -348,30 +389,35 @@ def start_server(server_path, memory, server_type):
     # 指定 Java 的路径
     java_path = r"C:\Program Files\Java\jdk-11\bin\javaw.exe"
     
+    # 自动移动不兼容模组
+    move_incompatible_mods(server_path)
+
     if server_type == "fabric":
-        fabric_installer_path = os.path.join(server_path, "fabric-installer.jar")  # 假设 Fabric 安装程序名为 fabric-installer.jar
+        fabric_installer_path = os.path.join(server_path, "fabric-installer.jar")
         if not os.path.exists(fabric_installer_path):
-            messagebox.showerror("错误", "指定的 Fabric 安装程序文件不存在")
+            log_message("错误: 指定的 Fabric 安装程序文件不存在")
             return
 
         log_message(f"启动 {server_type} 服务器: {fabric_installer_path}，分配内存: {memory}MB", is_launcher=True)
         try:
-            # 检查 Java 路径是否存在
             if not os.path.exists(java_path):
-                java_path = "javaw"  # 使用系统默认的 Java
+                java_path = "javaw"
 
-            # 使用 javaw 启动 Fabric 服务器，并避免弹出窗口
             process = subprocess.Popen(
                 [java_path, "-Xmx" + memory + "M", "-jar", fabric_installer_path, "server"],
                 cwd=server_path,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW  # 确保没有弹窗
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             def read_output():
                 for line in process.stdout:
                     log_message(line.strip(), is_launcher=True)
+                    # 检查输出中的不兼容模组信息
+                    if "incompatible" in line:
+                        move_incompatible_mods(server_path)
+
                 for line in process.stderr:
                     log_message(line.strip(), is_launcher=True)
 
@@ -379,35 +425,36 @@ def start_server(server_path, memory, server_type):
             log_message(f"{server_type} 服务器启动成功", is_launcher=True)
         except Exception as e:
             error_message = f"启动 {server_type} 服务器失败: {e}"
-            messagebox.showerror("错误", error_message)
             log_message(error_message, is_launcher=True)
 
     elif server_type == "forge":
-        version = version_var.get()  # 获取用户选择的版本
-        build_number = "36.2.42"  # 假设这是您要使用的构建号
-        forge_jar_path = os.path.join(server_path, f"forge-{version}-{build_number}.jar")  # 构建 JAR 文件名
+        version = version_var.get()
+        build_number = "36.2.42"
+        forge_jar_path = os.path.join(server_path, f"forge-{version}-{build_number}.jar")
         if not os.path.exists(forge_jar_path):
-            messagebox.showerror("错误", "指定的 Forge 启动文件不存在")
+            log_message("错误: 指定的 Forge 启动文件不存在")
             return
 
         log_message(f"启动 {server_type} 服务器: {forge_jar_path}，分配内存: {memory}MB", is_launcher=True)
         try:
-            # 检查 Java 路径是否存在
             if not os.path.exists(java_path):
-                java_path = "javaw"  # 使用系统默认的 Java
+                java_path = "javaw"
 
-            # 使用 javaw 启动 Forge 服务器，并避免弹出窗口
             process = subprocess.Popen(
                 [java_path, "-Xmx" + memory + "M", "-jar", forge_jar_path],
                 cwd=server_path,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=subprocess.CREATE_NO_WINDOW  # 确保没有弹窗
+                creationflags=subprocess.CREATE_NO_WINDOW
             )
             def read_output():
                 for line in process.stdout:
                     log_message(line.strip(), is_launcher=True)
+                    # 检查输出中的不兼容模组信息
+                    if "incompatible" in line:
+                        move_incompatible_mods(server_path)
+
                 for line in process.stderr:
                     log_message(line.strip(), is_launcher=True)
 
@@ -415,7 +462,6 @@ def start_server(server_path, memory, server_type):
             log_message(f"{server_type} 服务器启动成功", is_launcher=True)
         except Exception as e:
             error_message = f"启动 {server_type} 服务器失败: {e}"
-            messagebox.showerror("错误", error_message)
             log_message(error_message, is_launcher=True)
 
 # 加载配置
@@ -425,5 +471,5 @@ root.mainloop()
 
 # 保存配置
 config["install_path"] = install_path_var.get()
-config["launcher_path"] = launcher_path_var.get()  # 保存启动路径
+config["launcher_path"] = launcher_path_var.get()
 save_config(config)
