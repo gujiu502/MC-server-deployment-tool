@@ -1,7 +1,7 @@
 # minecraft-server-Assistant! mc服务器部署工具
 <h1>ch | en </h1>
 
-Automatically check for conflicting mods and move to incomplete_mods folder
+Automatically check for conflicting mods and move to incomplete_mods folder<br>
 自动检查冲突模组 并移动到 incompatible_mods文件夹
 
 ![Snipaste_2025-01-22_18-38-50](https://github.com/user-attachments/assets/b9e052e6-6b87-4e28-8a71-e14578807b05)
