@@ -1,4 +1,4 @@
-# minecraft-server-Assistant! mc服务器部署工具
+# MC server deployment tool! mc服务器部署工具
 <h1>ch | en </h1>
 
 Automatically check for conflicting mods and move to incomplete_mods folder<br>
